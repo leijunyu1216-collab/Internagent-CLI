@@ -1,0 +1,187 @@
+# Default configuration for InternAgent
+# This file is loaded when no specific config path is provided
+
+version: "1.0.0"
+
+system:
+  debug: false
+  log_level: "INFO"
+
+# Model Providers Configuration
+models:
+  default_provider: "openai"
+
+  openai:
+    model_name: "gpt-4o"
+    api_key: ""  # Set via environment variable OPENAI_API_KEY
+    temperature: 0.7
+
+  openrouter:
+    model_name: "moonshotai/kimi-k2.6:free"
+    api_key: ""  # Set via environment variable OPENROUTER_API_KEY
+    base_url: ""  # Defaults to https://openrouter.ai/api/v1
+    temperature: 0.7
+    app_name: "InternAgent"
+    site_url: "https://discovery.intern-ai.org.cn"
+
+# Memory Configuration
+memory:
+  # Context memory (for conversation history and working memory)
+  context_memory:
+    backend: "file_system"
+    file_dir: "results"
+
+  # Task memory - Short-term memory for learning from past experiments
+  # Records experiment results with labels (positive/negative) for future guidance
+  task_memory:
+    enabled: true
+    memory_dir: "./config/mem_store"
+    top_k: 5  # Number of similar records to retrieve
+    alpha: 0.5  # Weight for hybrid retrieval (keyword vs semantic)
+    include_details: true
+    embedding_mode: "description"  # Options: title/description/method/full
+    embedding:
+      model_type: "local"
+      model_name: ""  # HuggingFace model name or local path — see docs/memory_module.md
+
+  # Online memory (auto-save experiment results after each run)
+  online_memory:
+    enabled: true
+    aggregation: "best"  # How to aggregate results: best/avg/last
+
+  # Long memory - IdeaGraph for historical idea tracking and prompt evolution
+  # Uses ChromaDB for embeddings and NetworkX for graph operations
+  long_memory:
+    enabled: true
+    # IdeaGraph settings
+    idea_graph:
+      similarity_threshold: 0.7  # Minimum similarity for creating edges
+    # PromptEvolver settings - evolves prompts based on experience library
+    prompt_evolver:
+      enabled: true  # Enable automatic prompt evolution
+      evolution_interval: 1  # Evolve prompt every N loop rounds (1 = every round, 2 = every other round)
+
+sci_tools: 
+  local: false
+  remote:
+    # - id: wiki
+    #   url: https://mcp.deepwiki.com/sse
+    #   headers: {}
+    # - id: origen_chembl
+    #   url: http://172.31.51.70:8788/chembl_mcp/sse
+    #   headers: {}
+    # - id: tool_universe
+    #   url: http://localhost:52345/sse
+    #   headers: {}
+
+tools:
+  web_search:
+    max_results: 10
+  literature_search:
+    timeout: 30  # Request timeout in seconds (default: 30)
+    api_keys:
+      semantic_scholar: ""
+    # Knowledge Graph Papers Search
+    kg_papers:
+      api_url: "http://172.30.35.89:5000/"  # KG retrieval API
+
+# Agent Configuration
+agents:
+  # Idea Generation Agent
+  generation:
+    model_provider: "default"
+    generation_count: 15
+    creativity: 0.7
+    do_survey: true
+    use_memory: true  # Enable/disable memory system (default: true)
+    # Hypothesis filtering against failed memory records
+    filter_failed_ideas: true  # Enable filtering of ideas similar to failed attempts
+    failed_similarity_threshold: 0.7  # Similarity threshold to consider idea as similar to failed attempt
+    max_regeneration_attempts: 2  # Maximum attempts to regenerate filtered ideas
+
+  # Reflection Agent
+  reflection:
+    count: 3
+    model_provider: "default"
+    detail_level: "medium"
+
+  # Evolution Agent
+  evolution:
+    model_provider: "default"
+    evolution_count: 2
+    creativity_level: 0.6
+    temperature: 0.7
+    use_memory: true  # Enable/disable memory system for evolution
+    filter_failed_ideas: true  # Filter evolved hypotheses similar to failed attempts
+    failed_similarity_threshold: 0.7  # Similarity threshold for filtering
+    max_regeneration_attempts: 2  # Maximum regeneration attempts
+
+  # Method Development Agent
+  method_development:
+    model_provider: "default"
+
+  # Refinement Agent
+  refinement:
+    model_provider: "default"
+
+  # Ranking Agent
+  ranking:
+    model_provider: "default"
+    criteria:
+      novelty: 0.3
+      plausibility: 0.4
+      testability: 0.2
+      alignment: 0.1
+    strategy: "default"
+
+  # Scholar Agent
+  scholar:
+    model_provider: "default"
+    search_depth: "moderate"
+    sources: ["arxiv", "crossref", "web_search"] # "kg_papers",
+
+  # Survey Agent
+  survey:
+    model_provider: "default"
+    max_papers: 50
+    sources: ["arxiv", "crossref", "web_search"]
+
+  # DR Agent
+  dr:
+    model_provider: "default"
+    enabled: true  # Set to false to skip background generation
+    mode: "simple"
+
+  # Experiment Analysis Agent (for online memory)
+  exp_analyze:
+    model_provider: "default"
+    temperature: 0.7
+    max_tokens: 4096
+    timeout: 120
+    use_llm_for_metric_direction: true
+    use_llm_for_primary_metric: true
+
+# Workflow Configuration
+workflow:
+  max_iterations: 4
+  top_ideas_count: 5
+  top_ideas_evo: true
+  max_concurrent_tasks: 5
+  loop_rounds: 10  # Maximum number of full discovery rounds (generate ideas -> run experiments -> update memory -> repeat)
+  loop_mode: "incremental"  # Loop mode: 'fresh' (each round from baseline) or 'incremental' (each round from best result)
+
+# Sci Task Configuration (paper reproduction tasks)
+sci_task:
+  scorer_model: "gpt-5.1"          # LLM-as-judge model for checklist scoring (aligned with ResearchClawBench default)
+  evaluation_mode: "llm_judge"    # Evaluation mode (llm_judge or none)
+  default_launcher: "python code/experiment.py"  # Default launcher.sh command
+
+# Experiment Configuration
+experiment:
+  model: "claude-sonnet-4-5-20250929"
+  use_mcts: false
+  max_runs: 2  # Maximum number of experiment runs (run_0 is baseline, run_1 to run_N are improved versions)
+  # Parallel execution configuration
+  max_parallel_experiments: 4  # Maximum number of experiments to run in parallel
+  gpu_per_experiment: 1.0  # GPU allocation per experiment (supports fractional values like 0.25)
+  # Actual parallel count = min(max_parallel_experiments, available_gpus / gpu_per_experiment)

@@ -1,0 +1,147 @@
+# OpenRouter configuration for InternAgent.
+# Copy this file or pass it with --config to use OpenRouter as the LLM gateway.
+
+version: "1.0.0"
+
+system:
+  debug: false
+  log_level: "INFO"
+
+models:
+  default_provider: "openrouter"
+
+  openrouter:
+    model_name: "moonshotai/kimi-k2.6:free"
+    api_key: ""      # Prefer OPENROUTER_API_KEY from the environment
+    base_url: ""     # Defaults to https://openrouter.ai/api/v1
+    temperature: 0.7
+    timeout: 600
+    app_name: "InternAgent"
+    site_url: "https://discovery.intern-ai.org.cn"
+
+# The rest mirrors default_config.yaml so this file can be used directly.
+memory:
+  context_memory:
+    backend: "file_system"
+    file_dir: "results"
+
+  task_memory:
+    enabled: true
+    memory_dir: "./config/mem_store"
+    top_k: 5
+    alpha: 0.5
+    include_details: true
+    embedding_mode: "description"
+    embedding:
+      model_type: "local"
+      model_name: ""
+
+  online_memory:
+    enabled: true
+    aggregation: "best"
+
+  long_memory:
+    enabled: true
+    idea_graph:
+      similarity_threshold: 0.7
+    prompt_evolver:
+      enabled: true
+      evolution_interval: 1
+
+sci_tools:
+  local: false
+  remote: []
+
+tools:
+  web_search:
+    max_results: 10
+  literature_search:
+    timeout: 30
+    api_keys:
+      semantic_scholar: ""
+    kg_papers:
+      api_url: "http://172.30.35.89:5000/"
+
+agents:
+  generation:
+    model_provider: "default"
+    generation_count: 15
+    creativity: 0.7
+    do_survey: true
+    use_memory: true
+    filter_failed_ideas: true
+    failed_similarity_threshold: 0.7
+    max_regeneration_attempts: 2
+
+  reflection:
+    count: 3
+    model_provider: "default"
+    detail_level: "medium"
+
+  evolution:
+    model_provider: "default"
+    evolution_count: 2
+    creativity_level: 0.6
+    temperature: 0.7
+    use_memory: true
+    filter_failed_ideas: true
+    failed_similarity_threshold: 0.7
+    max_regeneration_attempts: 2
+
+  method_development:
+    model_provider: "default"
+
+  refinement:
+    model_provider: "default"
+
+  ranking:
+    model_provider: "default"
+    criteria:
+      novelty: 0.3
+      plausibility: 0.4
+      testability: 0.2
+      alignment: 0.1
+    strategy: "default"
+
+  scholar:
+    model_provider: "default"
+    search_depth: "moderate"
+    sources: ["arxiv", "crossref", "web_search"]
+
+  survey:
+    model_provider: "default"
+    max_papers: 50
+    sources: ["arxiv", "crossref", "web_search"]
+
+  dr:
+    model_provider: "default"
+    enabled: true
+    mode: "simple"
+
+  exp_analyze:
+    model_provider: "default"
+    temperature: 0.7
+    max_tokens: 4096
+    timeout: 120
+    use_llm_for_metric_direction: true
+    use_llm_for_primary_metric: true
+
+workflow:
+  max_iterations: 4
+  top_ideas_count: 5
+  top_ideas_evo: true
+  max_concurrent_tasks: 5
+  loop_rounds: 10
+  loop_mode: "incremental"
+
+sci_task:
+  scorer_model: "moonshotai/kimi-k2.6:free"
+  evaluation_mode: "llm_judge"
+  default_launcher: "python code/experiment.py"
+
+experiment:
+  model: "claude-sonnet-4-5-20250929"
+  use_mcts: false
+  max_runs: 2
+  max_parallel_experiments: 4
+  gpu_per_experiment: 1.0
